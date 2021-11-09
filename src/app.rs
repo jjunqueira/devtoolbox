@@ -1,23 +1,44 @@
+use base64;
 use eframe::{egui, epi};
+use std::str;
+use urlencoding::decode;
+use urlencoding::encode;
+use uuid::Uuid;
+
+#[derive(PartialEq)]
+enum ToolType {
+    UrlEncoding,
+    Base64,
+    UUID,
+}
+
+#[derive(PartialEq)]
+enum Direction {
+    Decode,
+    Encode,
+}
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))] // if we add new fields, give them default values when deserializing old state
 pub struct TemplateApp {
-    // Example stuff:
-    label: String,
-
-    // this how you opt-out of serialization of a member
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    value: f32,
+    current_tool: ToolType,
+    current_input: String,
+    current_output: String,
+    current_direction: Direction,
+    //
+    //    // this how you opt-out of serialization of a member
+    //    #[cfg_attr(feature = "persistence", serde(skip))]
+    //    value: f32,
 }
 
 impl Default for TemplateApp {
     fn default() -> Self {
         Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
+            current_tool: ToolType::UrlEncoding,
+            current_input: String::new(),
+            current_output: String::new(),
+            current_direction: Direction::Encode,
         }
     }
 }
@@ -52,7 +73,12 @@ impl epi::App for TemplateApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
-        let Self { label, value } = self;
+        let Self {
+            current_tool,
+            current_input,
+            current_output,
+            current_direction,
+        } = self;
 
         // Examples of how to create different panels and windows.
         // Pick whichever suits you.
@@ -71,39 +97,131 @@ impl epi::App for TemplateApp {
         });
 
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
-
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(label);
-            });
-
-            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                *value += 1.0;
+            ui.heading("Toolbox");
+            if ui
+                .selectable_value(current_tool, ToolType::UrlEncoding, "URL Encoding/Decoding")
+                .clicked()
+            {
+                current_input.clear();
+                current_output.clear();
             }
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.label("powered by ");
-                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                    ui.label(" and ");
-                    ui.hyperlink_to("eframe", "https://github.com/emilk/egui/tree/master/eframe");
-                });
-            });
+            if ui
+                .selectable_value(current_tool, ToolType::Base64, "Base64 Encoding/Decoding")
+                .clicked()
+            {
+                current_input.clear();
+                current_output.clear();
+            }
+            if ui
+                .selectable_value(current_tool, ToolType::UUID, "UUID Generator")
+                .clicked()
+            {
+                current_input.clear();
+                current_output.clear();
+            }
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-
-            ui.heading("eframe template");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
-            egui::warn_if_debug_build(ui);
+            match current_tool {
+                ToolType::UrlEncoding => {
+                    ui.heading("URL Encoding/Decoding");
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        if ui
+                            .radio_value(current_direction, Direction::Encode, "Encode")
+                            .clicked()
+                        {
+                            current_input.clear();
+                            current_output.clear();
+                        }
+                        if ui
+                            .radio_value(current_direction, Direction::Decode, "Decode")
+                            .clicked()
+                        {
+                            current_input.clear();
+                            current_output.clear();
+                        }
+                        if ui.button("clear").clicked() {
+                            current_input.clear();
+                            current_output.clear();
+                        }
+                    });
+                    ui.label("Input:");
+                    let input = ui
+                        .add(egui::TextEdit::multiline(current_input).desired_width(f32::INFINITY));
+                    if input.changed() {
+                        match current_direction {
+                            Direction::Encode => {
+                                let result = encode(current_input).into_owned();
+                                *current_output = result;
+                            }
+                            Direction::Decode => {
+                                let result = decode(current_input).expect("UTF-8").into_owned();
+                                *current_output = result;
+                            }
+                        }
+                    }
+                    ui.separator();
+                    ui.label("Output:");
+                    ui.add(egui::TextEdit::multiline(current_output).desired_width(f32::INFINITY));
+                }
+                ToolType::Base64 => {
+                    ui.heading("Base64 Encoding/Decoding");
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        if ui
+                            .radio_value(current_direction, Direction::Encode, "Encode")
+                            .clicked()
+                        {
+                            current_input.clear();
+                            current_output.clear();
+                        }
+                        if ui
+                            .radio_value(current_direction, Direction::Decode, "Decode")
+                            .clicked()
+                        {
+                            current_input.clear();
+                            current_output.clear();
+                        }
+                        if ui.button("clear").clicked() {
+                            current_input.clear();
+                            current_output.clear();
+                        }
+                    });
+                    ui.label("Input:");
+                    let input = ui
+                        .add(egui::TextEdit::multiline(current_input).desired_width(f32::INFINITY));
+                    if input.changed() {
+                        match current_direction {
+                            Direction::Encode => {
+                                let result = base64::encode(current_input);
+                                *current_output = result;
+                            }
+                            Direction::Decode => {
+                                let result = base64::decode(current_input);
+                                let contents = result.unwrap_or_default();
+                                *current_output =
+                                    str::from_utf8(&contents).unwrap_or_default().to_owned();
+                            }
+                        }
+                    }
+                    ui.separator();
+                    ui.label("Output:");
+                    ui.add(egui::TextEdit::multiline(current_output).desired_width(f32::INFINITY));
+                }
+                ToolType::UUID => {
+                    ui.heading("UUID Generator");
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        if ui.button("generate").clicked() {
+                            *current_output = Uuid::new_v4().to_hyphenated().to_string();
+                        }
+                    });
+                    ui.label("Output:");
+                    ui.add(egui::TextEdit::multiline(current_output).desired_width(f32::INFINITY));
+                }
+            }
         });
 
         if false {
