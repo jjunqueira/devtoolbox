@@ -1,4 +1,5 @@
 use base64;
+use chrono::prelude::*;
 use eframe::{egui, epi};
 use std::str;
 use urlencoding::decode;
@@ -10,6 +11,8 @@ enum ToolType {
     UrlEncoding,
     Base64,
     UUID,
+    UnixTime,
+    JsonFormat,
 }
 
 #[derive(PartialEq)]
@@ -45,7 +48,7 @@ impl Default for TemplateApp {
 
 impl epi::App for TemplateApp {
     fn name(&self) -> &str {
-        "eframe template"
+        "Dev Toolbox"
     }
 
     /// Called once before the first frame.
@@ -114,6 +117,20 @@ impl epi::App for TemplateApp {
             }
             if ui
                 .selectable_value(current_tool, ToolType::UUID, "UUID Generator")
+                .clicked()
+            {
+                current_input.clear();
+                current_output.clear();
+            }
+            if ui
+                .selectable_value(current_tool, ToolType::UnixTime, "Unix Time Converter")
+                .clicked()
+            {
+                current_input.clear();
+                current_output.clear();
+            }
+            if ui
+                .selectable_value(current_tool, ToolType::JsonFormat, "Json Formatter")
                 .clicked()
             {
                 current_input.clear();
@@ -220,6 +237,65 @@ impl epi::App for TemplateApp {
                     });
                     ui.label("Output:");
                     ui.add(egui::TextEdit::multiline(current_output).desired_width(f32::INFINITY));
+                }
+                ToolType::UnixTime => {
+                    ui.heading("Unix Time Converter");
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label("UTC Now:");
+                        ui.label(Utc::now().format("%Y-%m-%d %H:%M:%S").to_string());
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Epoch input:");
+                        ui.text_edit_singleline(current_input);
+                    });
+
+                    let timestamp = current_input.parse::<i64>();
+                    let mut utc_output;
+                    let mut local_output;
+                    match timestamp {
+                        Ok(ts) => {
+                            let naive = NaiveDateTime::from_timestamp(ts, 0);
+                            let datetime_utc: DateTime<Utc> = DateTime::from_utc(naive, Utc);
+                            let datetime_local: DateTime<Local> = DateTime::from(datetime_utc);
+                            utc_output = datetime_utc.format("%Y-%m-%d %H:%M:%S").to_string();
+                            local_output = datetime_local.format("%Y-%m-%d %H:%M:%S").to_string();
+                        }
+                        Err(_) => {
+                            utc_output = "N/A".to_string();
+                            local_output = "N/A".to_string();
+                        }
+                    }
+
+                    ui.horizontal(|ui| {
+                        ui.label("Formatted UTC Time:");
+                        ui.label(&mut utc_output);
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Formatted Local Time:");
+                        ui.label(&mut local_output);
+                    });
+                }
+                ToolType::JsonFormat => {
+                    ui.heading("Json Formatter");
+                    ui.separator();
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.label("Input:");
+                        let input = ui.add(
+                            egui::TextEdit::multiline(current_input).desired_width(f32::INFINITY),
+                        );
+                        if input.changed() {
+                            let result = jsonxf::pretty_print(current_input);
+                            let contents = result.unwrap_or("Invalid".to_string());
+                            *current_output = contents;
+                        }
+                        ui.separator();
+                        ui.label("Output:");
+                        ui.add(
+                            egui::TextEdit::multiline(current_output).desired_width(f32::INFINITY),
+                        );
+                    });
                 }
             }
         });
