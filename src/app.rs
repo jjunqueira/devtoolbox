@@ -5,6 +5,7 @@ use std::str;
 use urlencoding::decode;
 use urlencoding::encode;
 use uuid::Uuid;
+use sqlformat::{QueryParams,FormatOptions,Indent};
 
 #[derive(PartialEq)]
 enum ToolType {
@@ -13,6 +14,7 @@ enum ToolType {
     UUID,
     UnixTime,
     JsonFormat,
+    SqlFormat,
 }
 
 #[derive(PartialEq)]
@@ -131,6 +133,13 @@ impl epi::App for TemplateApp {
             }
             if ui
                 .selectable_value(current_tool, ToolType::JsonFormat, "Json Formatter")
+                .clicked()
+            {
+                current_input.clear();
+                current_output.clear();
+            }
+            if ui
+                .selectable_value(current_tool, ToolType::SqlFormat, "Json Formatter")
                 .clicked()
             {
                 current_input.clear();
@@ -289,6 +298,30 @@ impl epi::App for TemplateApp {
                             let result = jsonxf::pretty_print(current_input);
                             let contents = result.unwrap_or("Invalid".to_string());
                             *current_output = contents;
+                        }
+                        ui.separator();
+                        ui.label("Output:");
+                        ui.add(
+                            egui::TextEdit::multiline(current_output).desired_width(f32::INFINITY),
+                        );
+                    });
+                }
+                ToolType::SqlFormat => {
+                    ui.heading("SQL Formatter");
+                    ui.separator();
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.label("Input:");
+                        let input = ui.add(
+                            egui::TextEdit::multiline(current_input).desired_width(f32::INFINITY),
+                        );
+                        if input.changed() {
+                            let opts = FormatOptions {
+                                indent: Indent::Spaces(4),
+                                uppercase: true,
+                                lines_between_queries: 1,
+                            };
+                            let result = sqlformat::format(current_input, &QueryParams::None, opts);
+                            *current_output = result;
                         }
                         ui.separator();
                         ui.label("Output:");

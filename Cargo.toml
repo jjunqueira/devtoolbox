@@ -24,6 +24,8 @@ chrono = "0.4"
 
 jsonxf = "1.1.1"
 
+sqlformat = "0.1.8"
+
 [features]
 default = []
 persistence = ["eframe/persistence", "serde"] # Enable if you want to persist app state on shutdown
