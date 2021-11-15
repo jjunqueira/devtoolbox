@@ -139,7 +139,7 @@ impl epi::App for TemplateApp {
                 current_output.clear();
             }
             if ui
-                .selectable_value(current_tool, ToolType::SqlFormat, "Json Formatter")
+                .selectable_value(current_tool, ToolType::SqlFormat, "SQL Formatter")
                 .clicked()
             {
                 current_input.clear();
